@@ -7,6 +7,7 @@
 *.dll
 *.so
 *.dylib
+ufd-world
 
 # Test binary, built with `go test -c`
 *.test
