@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
 )
@@ -47,7 +49,18 @@ func TempWelcome(w http.ResponseWriter, req *http.Request) {
 
 func main() {
 	http.HandleFunc("/", TempWelcome)
-	err := http.ListenAndServeTLS(":443", "server.crt", "../private/server.key", nil)
+
+	insecure := flag.Bool("i", false, "i(nsecure) mode (no TLS)")
+	flag.Parse()
+
+	var err error
+	if *insecure {
+		fmt.Println("Listing on HTTP/8080")
+		err = http.ListenAndServe(":8080", nil)
+	} else {
+		fmt.Println("Listing on HTTPS/443")
+		err = http.ListenAndServeTLS(":443", "server.crt", "../private/server.key", nil)
+	}
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
