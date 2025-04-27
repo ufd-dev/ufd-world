@@ -27,3 +27,14 @@ shutdown -r 0
 openssl ecparam -genkey -name secp384r1 -out server.key
 # gen temp cert
 openssl req -new -x509 -sha256 -key server.key -out server.crt -days 3650
+
+# from https://certbot.eff.org/instructions?ws=other&os=snap
+sudo snap install --classic certbot
+sudo ln -s /snap/bin/certbot /usr/bin/certbot
+sudo certbot certonly --standalone
+# wrote to
+# Certificate is saved at: /etc/letsencrypt/live/ufd.world/fullchain.pem
+# Key is saved at:         /etc/letsencrypt/live/ufd.world/privkey.pem
+
+# after build/push
+# pkill ufd-world && cd /home/ufd-world/pub/ && cp /home/admin/ufd-world . && ./ufd-world &

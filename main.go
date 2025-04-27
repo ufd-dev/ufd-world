@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"log"
@@ -58,8 +59,22 @@ func main() {
 		fmt.Println("Listing on HTTP/8080")
 		err = http.ListenAndServe(":8080", nil)
 	} else {
+		cert, err := tls.LoadX509KeyPair(
+			"/etc/letsencrypt/live/ufd.world/fullchain.pem",
+			"/etc/letsencrypt/live/ufd.world/privkey.pem",
+		)
+		if err != nil {
+			panic("X509 error")
+		}
+
+		server := &http.Server{
+			Addr: ":443",
+			TLSConfig: &tls.Config{
+				Certificates: []tls.Certificate{cert},
+			},
+		}
 		fmt.Println("Listing on HTTPS/443")
-		err = http.ListenAndServeTLS(":443", "server.crt", "../private/server.key", nil)
+		err = server.ListenAndServeTLS("", "")
 	}
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
