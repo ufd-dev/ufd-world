@@ -4,48 +4,22 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 )
 
 func TempWelcome(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write([]byte(`
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>UFD.World</title>
-    <meta charset="UTF-8">
-	<style type="text/css">
-	  body {
-	    margin: 0;
-		padding: 0;
-	    background-color: black;
-		color: white;
-		font-family: sans-serif;
-		font-size: 1.5rem;
-	  }
-      a:link, a:visited, a:hover, a:active {
-        color: #007bff; /* Your desired color */
-        text-decoration: none;
-      }
-	  .container {
-	    padding: 16px;
-	  }
-	</style>
-  </head>
-  <body>
-    <div class="container">
-      <h1>UFD.World</h1>
-      <p>Coming soon: an unofficial community site for Unicorn Fart Dust</p>
-      <p>
-        The official site is
-        <a href="https://unicornfartdust.com/">https://unicornfartdust.com/</a>.
-      </p>
-    </div>
-  </body>
-</html>
-`))
+	tpl, err := template.ParseFiles("html/tpl.html")
+	if err != nil {
+		w.Write([]byte("An unknown error has occurred."))
+		return
+	}
+	err = tpl.Execute(w, nil)
+	if err != nil {
+		w.Write([]byte("An unknown error has occurred."))
+	}
 }
 
 func main() {
@@ -59,7 +33,8 @@ func main() {
 		fmt.Println("Listing on HTTP/8080")
 		err = http.ListenAndServe(":8080", nil)
 	} else {
-		cert, err := tls.LoadX509KeyPair(
+		var cert tls.Certificate
+		cert, err = tls.LoadX509KeyPair(
 			"/etc/letsencrypt/live/ufd.world/fullchain.pem",
 			"/etc/letsencrypt/live/ufd.world/privkey.pem",
 		)
