@@ -9,21 +9,19 @@ import (
 	"net/http"
 )
 
-func TempWelcome(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	tpl, err := template.ParseFiles("html/tpl.html")
-	if err != nil {
-		w.Write([]byte("An unknown error has occurred."))
-		return
-	}
-	err = tpl.Execute(w, nil)
-	if err != nil {
-		w.Write([]byte("An unknown error has occurred."))
-	}
+func registerTempWelcome(tpl *template.Template) {
+	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		err := tpl.ExecuteTemplate(w, "main.tpl.html", nil)
+		if err != nil {
+			w.Write([]byte("An unknown error has occurred."))
+		}
+	})
 }
 
 func main() {
-	http.HandleFunc("/", TempWelcome)
+	tpl := template.Must(template.ParseGlob("templates/*.tpl.html"))
+	registerTempWelcome(tpl)
 
 	insecure := flag.Bool("i", false, "i(nsecure) mode (no TLS)")
 	flag.Parse()
