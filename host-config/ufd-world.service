@@ -1,0 +1,15 @@
+[Unit]
+Description=ufd.world web server
+After=syslog.target network-online.target
+
+[Service]
+Type=simple
+User=ufd-world
+WorkingDirectory=/path/to/ufd-world
+ExecStart=/path/to/ufd-world/ufd-world
+Restart=on-failure
+RestartSec=10
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target
