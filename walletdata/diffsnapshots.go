@@ -1,12 +1,14 @@
 package main
 
 import (
+	"cmp"
 	"encoding/csv"
 	"fmt"
 	"log"
 	"maps"
 	"math"
 	"os"
+	"slices"
 	"strconv"
 )
 
@@ -25,7 +27,9 @@ type balanceChange struct {
 }
 
 func main() {
-	f1, err := os.Open("top1000snapshots/20250321.csv")
+	d1, d2 := "20250514", "20250605"
+
+	f1, err := os.Open(fmt.Sprintf("top1000snapshots/%s.csv", d1))
 	if err != nil {
 		log.Fatal("Error while reading first file", err)
 	}
@@ -38,7 +42,7 @@ func main() {
 		fmt.Println("Error reading first file's records")
 	}
 
-	f2, err := os.Open("top1000snapshots/20250503.csv")
+	f2, err := os.Open(fmt.Sprintf("top1000snapshots/%s.csv", d2))
 	if err != nil {
 		log.Fatal("Error while reading second file", err)
 	}
@@ -52,14 +56,14 @@ func main() {
 	}
 
 	records1 = records1[1:]
-	changes := make(map[string]*balanceChange, int(math.Round(1.5*float64(len(records1)))))
+	changeMap := make(map[string]*balanceChange, int(math.Round(1.5*float64(len(records1)))))
 	for _, r := range records1 {
 		start, err := strconv.ParseFloat(r[colQuantity], 64)
 		if err != nil {
 			panic("couldn't parse a balance")
 		}
 		acct := r[colAccount]
-		changes[acct] = &balanceChange{account: acct, start: start, diff: -start}
+		changeMap[acct] = &balanceChange{account: acct, start: start, diff: -start}
 	}
 
 	records2 = records2[1:]
@@ -69,16 +73,19 @@ func main() {
 		if err != nil {
 			panic("couldn't parse a balance")
 		}
-		change, ok := changes[acct]
+		change, ok := changeMap[acct]
 		if ok {
 			change.end = end
 			change.diff = end - change.start
 		} else {
-			changes[acct] = &balanceChange{account: acct, start: 0, end: end, diff: end}
+			changeMap[acct] = &balanceChange{account: acct, start: 0, end: end, diff: end}
 		}
 	}
 
-	for c := range maps.Values(changes) {
+	sortedChanges := slices.SortedFunc(maps.Values(changeMap), func(a, b *balanceChange) int {
+		return cmp.Compare(a.account, b.account)
+	})
+	for _, c := range sortedChanges {
 		fmt.Printf("%s\t%f\t%f\t%f\n", c.account, c.start, c.end, c.diff)
 	}
 }
