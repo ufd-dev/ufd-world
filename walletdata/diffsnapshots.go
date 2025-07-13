@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"cmp"
 	"encoding/csv"
 	"fmt"
@@ -19,6 +20,9 @@ const (
 	colPercentage
 )
 
+const pathTop1000 = "top1000snapshots/"
+const pathDiffs = "top1000snapshots/diffs/"
+
 type balanceChange struct {
 	account string
 	start   float64
@@ -27,22 +31,24 @@ type balanceChange struct {
 }
 
 func main() {
-	d1, d2 := "20250514", "20250605"
+	if len(os.Args) < 3 {
+		panic("provide start and end dates as args like 20250101")
+	}
+	d1, d2 := os.Args[1], os.Args[2]
 
-	f1, err := os.Open(fmt.Sprintf("top1000snapshots/%s.csv", d1))
+	f1, err := os.Open(fmt.Sprintf("%s%s.csv", pathTop1000, d1))
 	if err != nil {
 		log.Fatal("Error while reading first file", err)
 	}
 	defer f1.Close()
 
 	reader1 := csv.NewReader(f1)
-	// slice of slices of string
 	records1, err := reader1.ReadAll()
 	if err != nil {
 		fmt.Println("Error reading first file's records")
 	}
 
-	f2, err := os.Open(fmt.Sprintf("top1000snapshots/%s.csv", d2))
+	f2, err := os.Open(fmt.Sprintf("%s%s.csv", pathTop1000, d2))
 	if err != nil {
 		log.Fatal("Error while reading second file", err)
 	}
@@ -85,7 +91,24 @@ func main() {
 	sortedChanges := slices.SortedFunc(maps.Values(changeMap), func(a, b *balanceChange) int {
 		return cmp.Compare(a.account, b.account)
 	})
-	for _, c := range sortedChanges {
-		fmt.Printf("%s\t%f\t%f\t%f\n", c.account, c.start, c.end, c.diff)
+
+	filePath := fmt.Sprintf(pathDiffs+"%s-%s.csv", d1, d2)
+	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		panic(fmt.Sprintf("could not open file for writing %v", err))
 	}
+	defer f.Close()
+	writer := bufio.NewWriter(f)
+	for _, c := range sortedChanges {
+		_, err = writer.WriteString(fmt.Sprintf("%s\t%f\t%f\t%f\n", c.account, c.start, c.end, c.diff))
+		if err != nil {
+			panic("could not write to buffer")
+		}
+	}
+	err = writer.Flush()
+	if err != nil {
+		panic("could not write to file")
+	}
+
+	fmt.Printf("analysis written to %s\n", filePath)
 }
