@@ -22,16 +22,24 @@
       .container {
         padding: 16px;
       }
+      header {
+        display: flex;
+        flex-direction: row;
+        gap: 24px;
+        align-items: baseline;
+      }
+      header > a > h1 {
+        margin: 0;
+      }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>UFD.World</h1>
-      <p>Coming soon: an unofficial community site for Unicorn Fart Dust</p>
-      <p>
-        The official site is
-        <a href="https://unicornfartdust.com/">https://unicornfartdust.com/</a>.
-      </p>
+      <header>
+        <a href="/"><h1>UFD.World</h1></a>
+        <a href="/media">Media</a>
+      </header>
+      <main>{{template "content" .}}</main>
     </div>
   </body>
 </html>

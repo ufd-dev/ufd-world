@@ -13,6 +13,7 @@ func main() {
 	insecure := flag.Bool("i", false, "i(nsecure) mode (no TLS)")
 	flag.Parse()
 
+	loadTemplates()
 	r := configRoutes()
 
 	server := &http.Server{

@@ -1,35 +1,35 @@
 package main
 
 import (
-	"html/template"
 	"net/http"
 
 	"github.com/gorilla/mux"
 )
 
-var tpl *template.Template
-
 func configRoutes() *mux.Router {
-	tpl = template.Must(template.ParseGlob("templates/*.tpl.html"))
-
 	r := mux.NewRouter()
-	htmlRouter := r.NewRoute().Subrouter()
-	htmlRouter.Use(contentTypeHTMLMiddleware)
 
-	r.HandleFunc("/", handleTempWelcome)
+	// HTML pages
+	r.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		renderTemplate(w, "home.tpl.html", nil)
+	})
+	r.HandleFunc("/media", func(w http.ResponseWriter, req *http.Request) {
+		renderTemplate(w, "media.tpl.html", nil)
+	})
+
+	// JSON API
+	ar := r.PathPrefix("/api").Subrouter()
+	ar.Use(contentTypeJSONMiddleware)
+	ar.HandleFunc("/media", func(w http.ResponseWriter, req *http.Request) {
+		w.Write([]byte("[]"))
+	})
+
 	return r
 }
 
-func contentTypeHTMLMiddleware(next http.Handler) http.Handler {
+func contentTypeJSONMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json")
 		next.ServeHTTP(w, r)
 	})
-}
-
-func handleTempWelcome(w http.ResponseWriter, req *http.Request) {
-	err := tpl.ExecuteTemplate(w, "main.tpl.html", nil)
-	if err != nil {
-		w.Write([]byte("An unknown error has occurred."))
-	}
 }
