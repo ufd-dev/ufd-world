@@ -45,7 +45,7 @@
     const tagSearch = tagInput.value;
     const filteredMedia =
       tagSearch.length > 0
-        ? media.filter((m) => m.tags.includes(tagSearch))
+        ? media.filter((m) => m.tags.includes(tagSearch.toLowerCase()))
         : media;
 
     let acc = "";
