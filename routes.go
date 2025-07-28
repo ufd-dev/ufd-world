@@ -12,6 +12,17 @@ import (
 func configRoutes() *mux.Router {
 	r := mux.NewRouter()
 
+	// static files
+	fs := http.FileServer(http.Dir("./static/"))
+	r.PathPrefix("/static").Handler(
+		http.StripPrefix(
+			"/static/",
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// max-age=1year
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+				fs.ServeHTTP(w, r)
+			})))
+
 	// HTML pages
 	r.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		renderTemplate(w, "home.tpl.html", nil)

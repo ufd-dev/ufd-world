@@ -15,9 +15,9 @@ const (
 )
 
 type Item struct {
-	Filename string   `json:"filename"`
-	Type     string   `json:"type"`
-	Tags     []string `json:"tags"`
+	Filename string `json:"filename"`
+	Type     string `json:"type"`
+	Tags     string `json:"tags"`
 }
 
 func GetList() ([]Item, error) {

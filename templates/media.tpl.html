@@ -1,3 +1,65 @@
 {{define "content"}}
-<p>media</p>
+<style>
+  #images {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  #images > div {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 0.75rem;
+    width: 200px;
+  }
+</style>
+
+<label>Search tags: <input id="tag" /></label>
+<div id="images"></div>
+
+<script type="text/javascript">
+  let media;
+  (async function () {
+    try {
+      const res = await fetch("/api/media");
+      media = await res.json();
+      render();
+    } catch (e) {
+      console.error(e);
+    }
+  })();
+
+  const imgDiv = document.getElementById("images");
+  const tagInput = document.getElementById("tag");
+
+  tagInput.addEventListener("input", render);
+
+  function render() {
+    if (typeof media === "undefined") {
+      imgDiv.innerHTML = "Loading...";
+      return;
+    }
+
+    const tagSearch = tagInput.value;
+    const filteredMedia =
+      tagSearch.length > 0
+        ? media.filter((m) => m.tags.includes(tagSearch))
+        : media;
+
+    let acc = "";
+    filteredMedia.forEach((m) => {
+      const thumb = `/static/media/thumbnails/${stripFileExt(m.filename)}.jpg`;
+      const file = `/static/media/${m.filename}`;
+      acc += `<div><a target="_blank" href="${file}"><img src="${thumb}" /></a>tags: ${m.tags}</div>`;
+    });
+    imgDiv.innerHTML = acc;
+  }
+
+  function stripFileExt(filename) {
+    const idx = filename.lastIndexOf(".");
+    return idx === -1 ? filename : filename.slice(0, idx);
+  }
+
+  render();
+</script>
 {{end}}

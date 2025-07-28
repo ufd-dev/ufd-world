@@ -6,11 +6,10 @@
     <style type="text/css">
       body {
         margin: 0;
-        padding: 0;
+        padding: 16px;
         background-color: black;
         color: white;
         font-family: sans-serif;
-        font-size: 1.5rem;
       }
       a:link,
       a:visited,
@@ -19,14 +18,11 @@
         color: #007bff; /* Your desired color */
         text-decoration: none;
       }
-      .container {
-        padding: 16px;
-      }
       header {
         display: flex;
-        flex-direction: row;
         gap: 24px;
         align-items: baseline;
+        padding-bottom: 16px;
       }
       header > a > h1 {
         margin: 0;
@@ -34,12 +30,10 @@
     </style>
   </head>
   <body>
-    <div class="container">
-      <header>
-        <a href="/"><h1>UFD.World</h1></a>
-        <a href="/media">Media</a>
-      </header>
-      <main>{{template "content" .}}</main>
-    </div>
+    <header>
+      <a href="/"><h1>UFD.World</h1></a>
+      <a href="/media">Media</a>
+    </header>
+    <main>{{template "content" .}}</main>
   </body>
 </html>

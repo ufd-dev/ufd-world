@@ -1,7 +1,17 @@
 [
   {
-    "filename": "a.png",
+    "filename": "coinbase-unicorn.png",
     "type": "img",
-    "tags": ["inspirational"]
+    "tags": "coinbase gachaghost"
+  },
+  {
+    "filename": "moonpay-unicorn.png",
+    "type": "img",
+    "tags": "moonpay gachaghost"
+  },
+  {
+    "filename": "teamwork.png",
+    "type": "img",
+    "tags": "inspirational poster teamwork"
   }
 ]
