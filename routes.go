@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/ufd-dev/ufd-world/media"
 )
 
 func configRoutes() *mux.Router {
@@ -21,7 +24,18 @@ func configRoutes() *mux.Router {
 	ar := r.PathPrefix("/api").Subrouter()
 	ar.Use(contentTypeJSONMiddleware)
 	ar.HandleFunc("/media", func(w http.ResponseWriter, req *http.Request) {
-		w.Write([]byte("[]"))
+		media, err := media.GetList()
+		if err != nil {
+			http.Error(w, "\"Internal server error\"", http.StatusInternalServerError)
+			fmt.Println(err)
+			return
+		}
+		err = json.NewEncoder(w).Encode(media)
+		if err != nil {
+			http.Error(w, "\"Internal server error\"", http.StatusInternalServerError)
+			fmt.Println(err)
+			return
+		}
 	})
 
 	return r
