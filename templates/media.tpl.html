@@ -5,7 +5,6 @@
     flex-wrap: wrap;
     gap: 12px;
     max-width: 100%;
-    margin-top: 16px;
   }
   #images > div {
     display: flex;
@@ -14,9 +13,28 @@
     font-size: 0.75rem;
     width: 200px;
   }
+  #toolbar {
+    display: flex;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    background-color: black;
+    padding: 16px 0;
+    margin-top: -16px;
+  }
+  #toolbar > input[type="text"],
+  #toolbar > button {
+    height: 2em;
+    font-size: 1.6em;
+  }
 </style>
 
-<label>Search tags: <input id="tag" /></label>
+<div id="toolbar">
+  <input id="tag" placeholder="Search tags..." /><button id="clearSearch">
+    X
+  </button>
+</div>
+
 <div id="images"></div>
 
 <script type="text/javascript">
@@ -32,9 +50,15 @@
   })();
 
   const imgDiv = document.getElementById("images");
-  const tagInput = document.getElementById("tag");
 
+  const tagInput = document.getElementById("tag");
   tagInput.addEventListener("input", render);
+
+  const clearSearchButton = document.getElementById("clearSearch");
+  clearSearchButton.addEventListener("click", () => {
+    tagInput.value = "";
+    render();
+  });
 
   function render() {
     if (typeof media === "undefined") {
