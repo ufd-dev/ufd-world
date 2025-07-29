@@ -12,6 +12,11 @@
     gap: 8px;
     font-size: 0.75rem;
     width: 200px;
+    /* ensure 2 columns on a small screen; 6px = .5 * 12px flex gap */
+    max-width: calc(50% - 6px);
+  }
+  #images > div img {
+    width: 100%;
   }
   #toolbar {
     display: flex;
