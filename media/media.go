@@ -10,7 +10,7 @@ type FileType string
 
 const (
 	FileTypeStillImg = "img"
-	FileTypeGIF      = "anim"
+	FileTypeGIF      = "gif"
 	FileTypeVideo    = "video"
 )
 
