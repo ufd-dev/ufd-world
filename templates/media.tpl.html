@@ -20,24 +20,28 @@
   }
   #toolbar {
     display: flex;
-    gap: 8px;
+    gap: 32px;
     position: sticky;
     top: 0;
     background-color: black;
     padding: 16px 0;
     margin-top: -16px;
-  }
-  #toolbar > input[type="text"],
-  #toolbar > button {
-    height: 2em;
     font-size: 1.6em;
+    align-items: center;
+  }
+  #search > * {
+    height: 2em;
+    font-size: inherit;
   }
 </style>
 
 <div id="toolbar">
-  <input id="tag" placeholder="Search tags..." /><button id="clearSearch">
-    X
-  </button>
+  <span id="search"
+    ><input id="tag" placeholder="Search tags..." /><button id="clearSearch">
+      X
+    </button></span
+  >
+  <span id="pagination"></span>
 </div>
 
 <div id="images"></div>
@@ -54,39 +58,71 @@
     }
   })();
 
-  const imgDiv = document.getElementById("images");
+  const MAX_PER_PAGE = 100;
+  let currPage = 1;
 
   const tagInput = document.getElementById("tag");
-  tagInput.addEventListener("input", render);
+  tagInput.addEventListener("input", () => {
+    currPage = 1;
+    render();
+  });
 
   const clearSearchButton = document.getElementById("clearSearch");
   clearSearchButton.addEventListener("click", () => {
     tagInput.value = "";
     tagInput.focus();
+    currPage = 1;
     render();
   });
 
+  function getFilteredMedia() {
+    const tagSearch = tagInput.value;
+    return tagSearch.length > 0
+      ? media.filter((m) => {
+          const searchTerms = tagSearch
+            .trim()
+            .replace(/[']*/g, "")
+            .toLowerCase()
+            .split(" ");
+          return searchTerms.every((st) => m.tags.includes(st));
+        })
+      : media;
+  }
+
   function render() {
+    const imgDiv = document.getElementById("images");
     if (typeof media === "undefined") {
       imgDiv.innerHTML = "Loading...";
       return;
     }
 
-    const tagSearch = tagInput.value;
-    const filteredMedia =
-      tagSearch.length > 0
-        ? media.filter((m) => {
-            const searchTerms = tagSearch
-              .trim()
-              .replace(/[']*/g, "")
-              .toLowerCase()
-              .split(" ");
-            return searchTerms.every((st) => m.tags.includes(st));
-          })
-        : media;
+    const filteredMedia = getFilteredMedia();
+
+    const paginationDiv = document.getElementById("pagination");
+    let pagedMedia;
+    if (filteredMedia.length > MAX_PER_PAGE) {
+      pagedMedia = filteredMedia.slice(
+        (currPage - 1) * MAX_PER_PAGE,
+        currPage * MAX_PER_PAGE
+      );
+
+      const lastPage = Math.ceil(filteredMedia.length / MAX_PER_PAGE);
+      let paginationAcc = "";
+      if (currPage !== 1) {
+        paginationAcc += '<a href="#" onclick="--currPage; render()">&lt;</a>';
+      }
+      paginationAcc += `${currPage}/${lastPage}`;
+      if (currPage !== lastPage) {
+        paginationAcc += '<a href="#" onclick="++currPage; render()">&gt;</a>';
+      }
+      paginationDiv.innerHTML = paginationAcc;
+    } else {
+      pagedMedia = filteredMedia;
+      paginationDiv.innerHTML = "";
+    }
 
     let acc = "";
-    filteredMedia.forEach((m) => {
+    pagedMedia.forEach((m) => {
       const thumb = `/static/media/thumbnails/${stripFileExt(m.filename)}.jpg`;
       const file = `/static/media/${m.filename}`;
       acc += `<div><a target="_blank" href="${file}"><img src="${thumb}" /></a>${m.tags}</div>`;
