@@ -62,6 +62,7 @@
   const clearSearchButton = document.getElementById("clearSearch");
   clearSearchButton.addEventListener("click", () => {
     tagInput.value = "";
+    tagInput.focus();
     render();
   });
 
@@ -74,7 +75,14 @@
     const tagSearch = tagInput.value;
     const filteredMedia =
       tagSearch.length > 0
-        ? media.filter((m) => m.tags.includes(tagSearch.toLowerCase()))
+        ? media.filter((m) => {
+            const searchTerms = tagSearch
+              .trim()
+              .replace(/[']*/g, "")
+              .toLowerCase()
+              .split(" ");
+            return searchTerms.every((st) => m.tags.includes(st));
+          })
         : media;
 
     let acc = "";
