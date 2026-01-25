@@ -32,9 +32,12 @@ openssl req -new -x509 -sha256 -key server.key -out server.crt -days 3650
 sudo snap install --classic certbot
 sudo ln -s /snap/bin/certbot /usr/bin/certbot
 sudo certbot certonly --standalone
-# wrote to
 # Certificate is saved at: /etc/letsencrypt/live/ufd.world/fullchain.pem
 # Key is saved at:         /etc/letsencrypt/live/ufd.world/privkey.pem
+
+# after cert renewal, restart the server to start using the new one
+sudo cp restart-ufdworld.sh /etc/letsencrypt/renewal-hooks/deploy/
+sudo chmod 750 /etc/letsencrypt/renewal-hooks/deploy/restart-ufdworld.sh
 
 # after build/push
 # pkill ufd-world && cd /home/ufd-world/pub/ && cp /home/admin/ufd-world . && ./ufd-world &
