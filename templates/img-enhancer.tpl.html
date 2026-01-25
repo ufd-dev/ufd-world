@@ -1,0 +1,17 @@
+{{define "content"}}
+<style>
+  form {
+    display: flex;
+    flex-direction: column;
+    row-gap: 1rem;
+    width: fit-content;
+  }
+</style>
+
+<p>Add standard branding and tags to an image.</p>
+<form method="post" enctype="multipart/form-data">
+  <label>Tags <input name="tags" /></label>
+  <label><input type="file" name="image" /></label>
+  <input type="submit" />
+</form>
+{{end}}

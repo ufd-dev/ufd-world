@@ -27,9 +27,12 @@ func configRoutes() *mux.Router {
 	r.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		renderTemplate(w, "home.tpl.html", nil)
 	})
+
 	r.HandleFunc("/media", func(w http.ResponseWriter, req *http.Request) {
 		renderTemplate(w, "media.tpl.html", nil)
 	})
+
+	r.HandleFunc("/img-enhancer", handleImgEnhancer)
 
 	// JSON API
 	ar := r.PathPrefix("/api").Subrouter()
