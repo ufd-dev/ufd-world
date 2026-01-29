@@ -9,6 +9,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"log"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -22,18 +23,21 @@ func handleDownloadTaggedImg(w http.ResponseWriter, r *http.Request) {
 	const maxUpload = 20 << 20 // 20 MiB since 2^20 = 1MiB
 	r.Body = http.MaxBytesReader(w, r.Body, maxUpload)
 	if err := r.ParseMultipartForm(maxUpload); err != nil {
+		log.Println(err)
 		http.Error(w, fmt.Sprintf("File exceeds %v bytes", maxUpload), http.StatusRequestEntityTooLarge)
 		return
 	}
 
 	tags := cleanTagInput(r.FormValue("tags"))
 	if tags == "" {
+		log.Println("no tags")
 		http.Error(w, "No tags to add to the image", http.StatusBadRequest)
 		return
 	}
 
 	file, _, err := r.FormFile("image")
 	if err != nil {
+		log.Println(err)
 		http.Error(w, "Error reading uploaded file", http.StatusBadRequest)
 		return
 	}
@@ -41,6 +45,7 @@ func handleDownloadTaggedImg(w http.ResponseWriter, r *http.Request) {
 
 	resultBuf, contentType, err := ProcessUpload(file, tags)
 	if err != nil {
+		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -49,6 +54,7 @@ func handleDownloadTaggedImg(w http.ResponseWriter, r *http.Request) {
 
 	replacer := strings.NewReplacer(" ", "-")
 	filename := replacer.Replace("ufd "+tags) + contentTypeToExt(contentType)
+	log.Default().Printf("content/filename headers: '%v' '%v'", contentType, filename)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%v"`, filename))
 
 	w.Write(resultBuf.Bytes())
