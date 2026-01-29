@@ -27,12 +27,16 @@ func configRoutes() *mux.Router {
 	r.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		renderTemplate(w, "home.tpl.html", nil)
 	})
-
 	r.HandleFunc("/media", func(w http.ResponseWriter, req *http.Request) {
 		renderTemplate(w, "media.tpl.html", nil)
 	})
+	r.HandleFunc("/img-tagger", func(w http.ResponseWriter, req *http.Request) {
+		renderTemplate(w, "img-tagger.tpl.html", nil)
+	})
 
-	r.HandleFunc("/img-tagger", handleImgTagger)
+	s := r.PathPrefix("/img-tagger/download").Subrouter()
+	s.Use(noCacheMiddleware)
+	s.HandleFunc("", handleDownloadTaggedImg)
 
 	// JSON API
 	ar := r.PathPrefix("/api").Subrouter()
@@ -58,6 +62,15 @@ func configRoutes() *mux.Router {
 func contentTypeJSONMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		next.ServeHTTP(w, r)
+	})
+}
+
+func noCacheMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
 		next.ServeHTTP(w, r)
 	})
 }

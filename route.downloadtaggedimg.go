@@ -18,12 +18,7 @@ import (
 	"github.com/fogleman/gg"
 )
 
-func handleImgTagger(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		renderTemplate(w, "img-tagger.tpl.html", nil)
-		return
-	}
-
+func handleDownloadTaggedImg(w http.ResponseWriter, r *http.Request) {
 	const maxUpload = 20 << 20 // 20 MiB since 2^20 = 1MiB
 	r.Body = http.MaxBytesReader(w, r.Body, maxUpload)
 	if err := r.ParseMultipartForm(maxUpload); err != nil {
