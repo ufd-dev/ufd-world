@@ -14,6 +14,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/fogleman/gg"
@@ -51,13 +52,15 @@ func handleDownloadTaggedImg(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", contentType)
-
 	replacer := strings.NewReplacer(" ", "-")
 	filename := replacer.Replace("ufd "+tags) + contentTypeToExt(contentType)
-	log.Default().Printf("content/filename headers: '%v' '%v'", contentType, filename)
+	log.Printf("content/filename headers: '%v' '%v'", contentType, filename)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%v"`, filename))
+	w.Header().Set("Content-Length", strconv.Itoa(resultBuf.Len()))
 
-	w.Write(resultBuf.Bytes())
+	if _, err = w.Write(resultBuf.Bytes()); err != nil {
+		log.Println(err)
+	}
 }
 
 func cleanTagInput(input string) string {
