@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/fogleman/gg"
@@ -31,7 +33,7 @@ func handleImgEnhancer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tags := r.FormValue("tags")
+	tags := cleanTagInput(r.FormValue("tags"))
 	if tags == "" {
 		renderImgEnhancer(w, &EnhancedImg{Error: fmt.Errorf("No tags to add to the image")})
 		return
@@ -79,8 +81,24 @@ func handleImgEnhancer(w http.ResponseWriter, r *http.Request) {
 	renderImgEnhancer(w, &EnhancedImg{Filename: filepath.Base(tmpPath)})
 }
 
+func cleanTagInput(input string) string {
+	replacer := strings.NewReplacer(",", " ", ";", " ")
+	s := replacer.Replace(input)
+
+	reg := regexp.MustCompile("[^a-zA-Z0-9 ]+")
+	s = reg.ReplaceAllString(s, "")
+
+	// handle multiple spaces and spaces on either edge
+	fields := strings.Fields(s)
+	return strings.Join(fields, " ")
+}
+
 // addLabelOverlay draws the text over a white box on the image
 func addLabelOverlay(src image.Image, text string) (image.Image, error) {
+	const padding = 10.0
+	const fontSize float64 = 32
+	const topLine = "UnicornFartDust.com"
+
 	bounds := src.Bounds()
 	width := bounds.Dx()
 	height := bounds.Dy()
@@ -88,31 +106,34 @@ func addLabelOverlay(src image.Image, text string) (image.Image, error) {
 	dc := gg.NewContext(width, height)
 	dc.DrawImage(src, 0, 0)
 
-	// Load a font - REQUIRED.
-	// Ensure "arial.ttf" or a similar font file exists in your project root.
-	// You can adjust the size (48) based on your needs.
-	if err := dc.LoadFontFace("arial.ttf", 48); err != nil {
+	if err := dc.LoadFontFace("arial.ttf", fontSize); err != nil {
 		return nil, fmt.Errorf("could not load font: %v", err)
 	}
 
-	// Calculate text width to size the white box
+	// want the topLine width first to set a min width for the tags box
+	topLineW, topLineH := dc.MeasureString(topLine)
+
+	// draw the tag text and white box behind it
+	text = "tags: ufd " + text
 	textW, textH := dc.MeasureString(text)
-	padding := 20.0
-	boxW := textW + (padding * 2)
+	boxW := max(topLineW, textW) + (padding * 2)
 	boxH := textH + (padding * 2)
-
-	// Position: Bottom center of the image
-	x := float64(width) / 2
-	y := float64(height) - 100 // 100px from bottom
-
-	// Draw the White Box (centered on x, y)
-	dc.SetRGB(1, 1, 1) // White
-	dc.DrawRectangle(x-(boxW/2), y-(boxH/2), boxW, boxH)
+	y := float64(height) - boxH
+	dc.SetRGB(1, 1, 1)
+	dc.DrawRectangle(0, y, boxW, boxH)
 	dc.Fill()
-
-	// Draw the Text (Black)
 	dc.SetRGB(0, 0, 0)
-	dc.DrawStringAnchored(text, x, y, 0.5, 0.35) // 0.5, 0.35 centers text visually
+	dc.DrawStringAnchored(text, padding, y+padding, 0, 1)
+
+	// draw the topLine text and white box behind it
+	boxW = topLineW + (padding * 2)
+	boxH = topLineH + (padding * 2)
+	y = y - boxH
+	dc.SetRGB(1, 1, 1)
+	dc.DrawRectangle(0, y, boxW, boxH)
+	dc.Fill()
+	dc.SetRGB(0, 0, 0)
+	dc.DrawStringAnchored(topLine, padding, y+padding, 0, 1)
 
 	return dc.Image(), nil
 }
