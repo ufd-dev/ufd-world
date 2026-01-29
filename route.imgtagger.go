@@ -68,7 +68,7 @@ func cleanTagInput(input string) string {
 
 	// handle multiple spaces and spaces on either edge
 	fields := strings.Fields(s)
-	return strings.Join(fields, " ")
+	return strings.ToLower(strings.Join(fields, " "))
 }
 
 // addLabelOverlay draws the text over a white box on the image
