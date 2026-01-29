@@ -1,16 +1,19 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"image"
+	"image/draw"
+	"image/gif"
 	"image/jpeg"
-	"log"
+	"image/png"
+	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/fogleman/gg"
 )
@@ -22,63 +25,43 @@ type EnhancedImg struct {
 
 func handleImgEnhancer(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		renderImgEnhancer(w, nil)
+		renderTemplate(w, "img-enhancer.tpl.html", nil)
 		return
 	}
 
 	const maxUpload = 20 << 20 // 20 MiB since 2^20 = 1MiB
 	r.Body = http.MaxBytesReader(w, r.Body, maxUpload)
 	if err := r.ParseMultipartForm(maxUpload); err != nil {
-		renderImgEnhancer(w, &EnhancedImg{Error: fmt.Errorf("File exceeds %v bytes", maxUpload)})
+		http.Error(w, fmt.Sprintf("File exceeds %v bytes", maxUpload), http.StatusRequestEntityTooLarge)
 		return
 	}
 
 	tags := cleanTagInput(r.FormValue("tags"))
 	if tags == "" {
-		renderImgEnhancer(w, &EnhancedImg{Error: fmt.Errorf("No tags to add to the image")})
+		http.Error(w, "No tags to add to the image", http.StatusBadRequest)
 		return
 	}
 
 	file, _, err := r.FormFile("image")
 	if err != nil {
-		log.Printf("FormFile error: %v", err)
-		renderImgEnhancer(w, &EnhancedImg{Error: fmt.Errorf("Error reading uploaded file")})
+		http.Error(w, "Error reading uploaded file", http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
 
-	img, _, err := image.Decode(file)
+	resultBuf, contentType, err := ProcessUpload(file, tags)
 	if err != nil {
-		renderImgEnhancer(w, &EnhancedImg{Error: fmt.Errorf("Invalid image format")})
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	finalImage, err := addLabelOverlay(img, tags)
-	if err != nil {
-		log.Printf("Image processing error: %v", err)
-		renderImgEnhancer(w, &EnhancedImg{Error: fmt.Errorf("Could not update image")})
-		return
-	}
+	w.Header().Set("Content-Type", contentType)
 
-	tmpFile, err := os.CreateTemp("", "processed-*.jpg")
-	if err != nil {
-		renderImgEnhancer(w, &EnhancedImg{Error: fmt.Errorf("Could not write updated image")})
-		return
-	}
-	defer tmpFile.Close()
+	replacer := strings.NewReplacer(" ", "-")
+	filename := replacer.Replace("ufd "+tags) + contentTypeToExt(contentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%v"`, filename))
 
-	if err := jpeg.Encode(tmpFile, finalImage, &jpeg.Options{Quality: 90}); err != nil {
-		renderImgEnhancer(w, &EnhancedImg{Error: fmt.Errorf("Could not save updated image")})
-		return
-	}
-
-	tmpPath := tmpFile.Name()
-	go func(path string) {
-		time.Sleep(2 * time.Minute)
-		os.Remove(path)
-	}(tmpPath)
-
-	renderImgEnhancer(w, &EnhancedImg{Filename: filepath.Base(tmpPath)})
+	w.Write(resultBuf.Bytes())
 }
 
 func cleanTagInput(input string) string {
@@ -94,7 +77,7 @@ func cleanTagInput(input string) string {
 }
 
 // addLabelOverlay draws the text over a white box on the image
-func addLabelOverlay(src image.Image, text string) (image.Image, error) {
+func addOverlay(src image.Image, text string) (image.Image, error) {
 	const padding = 10.0
 	const fontSize float64 = 32
 	const topLine = "UnicornFartDust.com"
@@ -138,9 +121,126 @@ func addLabelOverlay(src image.Image, text string) (image.Image, error) {
 	return dc.Image(), nil
 }
 
-func renderImgEnhancer(w http.ResponseWriter, img *EnhancedImg) {
-	if img != nil {
-		log.Println("EnhancedImg: ", img.Filename, img.Error)
+// ProcessUpload handles the detection and processing logic
+func ProcessUpload(file multipart.File, tags string) (*bytes.Buffer, string, error) {
+	// 1. Reset file pointer to start (just in case)
+	if _, err := file.Seek(0, 0); err != nil {
+		return nil, "", err
 	}
-	renderTemplate(w, "img-enhancer.tpl.html", nil)
+
+	// 2. Peek at the format without decoding the whole image
+	// image.DecodeConfig only reads the header
+	_, format, err := image.DecodeConfig(file)
+	if err != nil {
+		return nil, "", fmt.Errorf("unknown format: %v", err)
+	}
+
+	// 3. Rewind the file pointer so the actual decoders can read from the start
+	if _, err := file.Seek(0, 0); err != nil {
+		return nil, "", err
+	}
+
+	// 4. Route based on format
+	outputBuffer := new(bytes.Buffer)
+
+	switch format {
+	case "gif":
+		// Handle GIFs (potentially animated)
+		err = processAnimatedGIF(file, outputBuffer, tags)
+		return outputBuffer, "image/gif", err
+
+	case "jpeg":
+		// Handle Static JPEG
+		err = processStaticImage(file, outputBuffer, func(w io.Writer, i image.Image) error {
+			return jpeg.Encode(w, i, nil)
+		}, tags)
+		return outputBuffer, "image/jpeg", err
+
+	case "png":
+		// Handle Static PNG
+		err = processStaticImage(file, outputBuffer, png.Encode, tags)
+		return outputBuffer, "image/png", err
+
+	default:
+		return nil, "", fmt.Errorf("unsupported format: %s", format)
+	}
+}
+
+// processStaticImage handles PNGs and JPEGs
+func processStaticImage(r io.Reader, w io.Writer, encoder func(io.Writer, image.Image) error, tags string) error {
+	img, _, err := image.Decode(r)
+	if err != nil {
+		return err
+	}
+
+	finalImg, err := addOverlay(img, tags)
+	if err != nil {
+		return err
+	}
+
+	return encoder(w, finalImg)
+}
+
+// processAnimatedGIF handles the complex logic of frame iteration and quantization
+func processAnimatedGIF(r io.Reader, w io.Writer, tags string) error {
+	// Decode all frames
+	g, err := gif.DecodeAll(r)
+	if err != nil {
+		return err
+	}
+
+	// Create a new GIF struct to hold results
+	outGif := &gif.GIF{
+		Image:           make([]*image.Paletted, len(g.Image)),
+		Delay:           g.Delay,
+		LoopCount:       g.LoopCount,
+		Disposal:        g.Disposal,
+		Config:          g.Config,
+		BackgroundIndex: g.BackgroundIndex,
+	}
+
+	for i, frame := range g.Image {
+		bounds := frame.Bounds()
+
+		// 1. Draw frame onto RGBA canvas (handling disposal/transparency roughly)
+		// Note: For perfect disposal handling, you need a virtual canvas that persists
+		// across loops, but for simple overlays, drawing the current frame usually works.
+		img := image.NewRGBA(bounds)
+		draw.Draw(img, bounds, frame, bounds.Min, draw.Src)
+
+		// 2. Apply Overlay
+		processedImg, err := addOverlay(img, tags)
+		if err != nil {
+			return err
+		}
+
+		// 3. Quantize (RGBA -> Paletted) using the Buffer Trick
+		// We encode a single frame to a buffer and decode it back to let
+		// Go's standard library handle the color quantization.
+		buf := &bytes.Buffer{}
+		// Options nil = 256 colors, default Quantizer
+		if err := gif.Encode(buf, processedImg, nil); err != nil {
+			return err
+		}
+
+		tempImg, err := gif.Decode(buf)
+		if err != nil {
+			return err
+		}
+
+		palettedFrame, _ := tempImg.(*image.Paletted)
+		palettedFrame.Rect = bounds // Restore offsets if necessary
+
+		outGif.Image[i] = palettedFrame
+	}
+
+	return gif.EncodeAll(w, outGif)
+}
+
+func contentTypeToExt(ct string) string {
+	exts, err := mime.ExtensionsByType(ct)
+	if err != nil || len(exts) == 0 {
+		return ""
+	}
+	return exts[0]
 }
