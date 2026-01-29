@@ -79,7 +79,8 @@ func cleanTagInput(input string) string {
 // addLabelOverlay draws the text over a white box on the image
 func addOverlay(src image.Image, text string) (image.Image, error) {
 	const padding = 10.0
-	const fontSize float64 = 32
+	const minFont float64 = 18
+	const maxFont float64 = 36
 	const topLine = "UnicornFartDust.com"
 
 	bounds := src.Bounds()
@@ -89,6 +90,7 @@ func addOverlay(src image.Image, text string) (image.Image, error) {
 	dc := gg.NewContext(width, height)
 	dc.DrawImage(src, 0, 0)
 
+	fontSize := min(max(float64(height)*.05, minFont), maxFont)
 	if err := dc.LoadFontFace("arial.ttf", fontSize); err != nil {
 		return nil, fmt.Errorf("could not load font: %v", err)
 	}
