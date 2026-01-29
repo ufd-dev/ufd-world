@@ -16,8 +16,10 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/fogleman/gg"
+	"github.com/tidbyt/go-libwebp/webp"
 )
 
 func handleDownloadTaggedImg(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +56,6 @@ func handleDownloadTaggedImg(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", contentType)
 	replacer := strings.NewReplacer(" ", "-")
 	filename := replacer.Replace("ufd "+tags) + contentTypeToExt(contentType)
-	log.Printf("content/filename headers: '%v' '%v'", contentType, filename)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%v"`, filename))
 	w.Header().Set("Content-Length", strconv.Itoa(resultBuf.Len()))
 
@@ -98,7 +99,7 @@ func addOverlay(src image.Image, text string) (image.Image, error) {
 	textW, textH := dc.MeasureString(topLine)
 	boxW := textW + (padding * 2)
 	boxH := textH + (padding * 2)
-	dc.SetRGBA(0, 0, 0, .5)
+	dc.SetRGBA(0, 0, 0, .6)
 	dc.DrawRectangle(0, 0, boxW, boxH)
 	dc.Fill()
 	dc.SetRGB(1, 1, 1)
@@ -110,7 +111,7 @@ func addOverlay(src image.Image, text string) (image.Image, error) {
 	boxW = textW + (padding * 2)
 	boxH = textH + (padding * 2)
 	y := float64(height) - boxH
-	dc.SetRGBA(0, 0, 0, .5)
+	dc.SetRGBA(0, 0, 0, .6)
 	dc.DrawRectangle(0, y, boxW, boxH)
 	dc.Fill()
 	dc.SetRGB(1, 1, 1)
@@ -145,7 +146,8 @@ func ProcessUpload(file multipart.File, tags string) (*bytes.Buffer, string, err
 	case "gif":
 		// Handle GIFs (potentially animated)
 		err = processAnimatedGIF(file, outputBuffer, tags)
-		return outputBuffer, "image/gif", err
+		// webp is not a mistake; animations are converted to this format
+		return outputBuffer, "image/webp", err
 
 	case "jpeg":
 		// Handle Static JPEG
@@ -187,52 +189,76 @@ func processAnimatedGIF(r io.Reader, w io.Writer, tags string) error {
 		return err
 	}
 
-	// Create a new GIF struct to hold results
-	outGif := &gif.GIF{
-		Image:           make([]*image.Paletted, len(g.Image)),
-		Delay:           g.Delay,
-		LoopCount:       g.LoopCount,
-		Disposal:        g.Disposal,
-		Config:          g.Config,
-		BackgroundIndex: g.BackgroundIndex,
+	imageRect := image.Rectangle{
+		Max: image.Point{X: g.Config.Width, Y: g.Config.Height},
 	}
 
+	var imgFrames []image.Image
 	for i, frame := range g.Image {
 		bounds := frame.Bounds()
 
 		// 1. Draw frame onto RGBA canvas (handling disposal/transparency roughly)
 		// Note: For perfect disposal handling, you need a virtual canvas that persists
 		// across loops, but for simple overlays, drawing the current frame usually works.
-		img := image.NewRGBA(bounds)
-		draw.Draw(img, bounds, frame, bounds.Min, draw.Src)
-
-		// 2. Apply Overlay
-		processedImg, err := addOverlay(img, tags)
-		if err != nil {
-			return err
+		img := image.NewRGBA(imageRect)
+		if i > 0 {
+			draw.Draw(img, imageRect, imgFrames[i-1], image.Point{}, draw.Src)
 		}
+		draw.Draw(img, bounds, frame, bounds.Min, draw.Over)
 
-		// 3. Quantize (RGBA -> Paletted) using the Buffer Trick
-		// We encode a single frame to a buffer and decode it back to let
-		// Go's standard library handle the color quantization.
-		buf := &bytes.Buffer{}
-		// Options nil = 256 colors, default Quantizer
-		if err := gif.Encode(buf, processedImg, nil); err != nil {
-			return err
-		}
-
-		tempImg, err := gif.Decode(buf)
-		if err != nil {
-			return err
-		}
-
-		palettedFrame, _ := tempImg.(*image.Paletted)
-		palettedFrame.Rect = bounds // Restore offsets if necessary
-
-		outGif.Image[i] = palettedFrame
+		imgFrames = append(imgFrames, img)
 	}
 
-	return gif.EncodeAll(w, outGif)
+	// do this after to avoid adding the background's alpha channel across frames
+	for i, frame := range imgFrames {
+		processedImg, err := addOverlay(frame, tags)
+		if err != nil {
+			return err
+		}
+		imgFrames[i] = processedImg
+	}
+
+	// TODO: preserve variable delay
+	frameDuration := time.Duration(g.Delay[0]*10) * time.Millisecond
+
+	animatedWebPBytes, err := encodeAnimatedWebP(imgFrames, frameDuration)
+	if err != nil {
+		return err
+	}
+
+	if _, err = w.Write(animatedWebPBytes); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func encodeAnimatedWebP(frames []image.Image, duration time.Duration) ([]byte, error) {
+	if len(frames) == 0 {
+		return nil, fmt.Errorf("no frames provided")
+	}
+
+	firstFrame := frames[0]
+	bounds := firstFrame.Bounds()
+	width, height := bounds.Dx(), bounds.Dy()
+
+	// Initialize the encoder with width, height, and loop settings (kmin/kmax for keyframes)
+	// Kmin and Kmax can be set to 0 to use library defaults.
+	enc, err := webp.NewAnimationEncoder(width, height, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer enc.Close()
+
+	// Add each frame with the specified duration
+	for _, frame := range frames {
+		if err := enc.AddFrame(frame, duration); err != nil {
+			return nil, err
+		}
+	}
+
+	// Assemble all frames into the final animated WebP byte slice
+	return enc.Assemble()
 }
 
 func contentTypeToExt(ct string) string {

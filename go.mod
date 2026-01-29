@@ -7,6 +7,7 @@ toolchain go1.24.11
 require (
 	github.com/fogleman/gg v1.3.0
 	github.com/gorilla/mux v1.8.1
+	github.com/tidbyt/go-libwebp v0.0.0-20230922075150-fb11063b2a6a
 )
 
 require (
