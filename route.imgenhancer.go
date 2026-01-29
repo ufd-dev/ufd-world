@@ -78,9 +78,9 @@ func cleanTagInput(input string) string {
 
 // addLabelOverlay draws the text over a white box on the image
 func addOverlay(src image.Image, text string) (image.Image, error) {
-	const padding = 10.0
-	const minFont float64 = 18
-	const maxFont float64 = 36
+	const padding = 8.0
+	const minFont float64 = 16
+	const maxFont float64 = 32
 	const topLine = "UnicornFartDust.com"
 
 	bounds := src.Bounds()
@@ -95,30 +95,27 @@ func addOverlay(src image.Image, text string) (image.Image, error) {
 		return nil, fmt.Errorf("could not load font: %v", err)
 	}
 
-	// want the topLine width first to set a min width for the tags box
-	topLineW, topLineH := dc.MeasureString(topLine)
+	// draw the topLine text and white box behind it
+	textW, textH := dc.MeasureString(topLine)
+	boxW := textW + (padding * 2)
+	boxH := textH + (padding * 2)
+	dc.SetRGBA(0, 0, 0, .5)
+	dc.DrawRectangle(0, 0, boxW, boxH)
+	dc.Fill()
+	dc.SetRGB(1, 1, 1)
+	dc.DrawStringAnchored(topLine, padding, padding, 0, 1)
 
 	// draw the tag text and white box behind it
 	text = "tags: ufd " + text
-	textW, textH := dc.MeasureString(text)
-	boxW := max(topLineW, textW) + (padding * 2)
-	boxH := textH + (padding * 2)
+	textW, textH = dc.MeasureString(text)
+	boxW = textW + (padding * 2)
+	boxH = textH + (padding * 2)
 	y := float64(height) - boxH
-	dc.SetRGB(1, 1, 1)
+	dc.SetRGBA(0, 0, 0, .5)
 	dc.DrawRectangle(0, y, boxW, boxH)
 	dc.Fill()
-	dc.SetRGB(0, 0, 0)
+	dc.SetRGB(1, 1, 1)
 	dc.DrawStringAnchored(text, padding, y+padding, 0, 1)
-
-	// draw the topLine text and white box behind it
-	boxW = topLineW + (padding * 2)
-	boxH = topLineH + (padding * 2)
-	y = y - boxH
-	dc.SetRGB(1, 1, 1)
-	dc.DrawRectangle(0, y, boxW, boxH)
-	dc.Fill()
-	dc.SetRGB(0, 0, 0)
-	dc.DrawStringAnchored(topLine, padding, y+padding, 0, 1)
 
 	return dc.Image(), nil
 }
