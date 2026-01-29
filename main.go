@@ -18,8 +18,8 @@ func main() {
 
 	server := &http.Server{
 		Handler:      r,
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		ReadTimeout:  30 * time.Second,
 	}
 
 	var err error
