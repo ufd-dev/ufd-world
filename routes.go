@@ -32,7 +32,7 @@ func configRoutes() *mux.Router {
 		renderTemplate(w, "media.tpl.html", nil)
 	})
 
-	r.HandleFunc("/img-enhancer", handleImgEnhancer)
+	r.HandleFunc("/img-tagger", handleImgTagger)
 
 	// JSON API
 	ar := r.PathPrefix("/api").Subrouter()

@@ -18,14 +18,9 @@ import (
 	"github.com/fogleman/gg"
 )
 
-type EnhancedImg struct {
-	Filename string
-	Error    error
-}
-
-func handleImgEnhancer(w http.ResponseWriter, r *http.Request) {
+func handleImgTagger(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		renderTemplate(w, "img-enhancer.tpl.html", nil)
+		renderTemplate(w, "img-tagger.tpl.html", nil)
 		return
 	}
 
