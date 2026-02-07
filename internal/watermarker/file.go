@@ -6,6 +6,10 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
+
+	"github.com/google/uuid"
+	"github.com/ufd-dev/ufd-world/internal/watermarker/internal/videoproc"
 )
 
 type ContentType string
@@ -23,14 +27,33 @@ type File struct {
 	tags    string
 }
 
-func NewFile(in multipart.File, tags string) (*File, error) {
+func ProcFile(collection string, in multipart.File, tags string) (uuid.UUID, error) {
 	ct, err := detectContentType(in)
 	if err != nil {
-		return nil, err
+		return uuid.UUID{}, err
 	}
 
+	srcPath, err := saveTmpFile(collection, in, ct)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
 
-	return &File{inType: ct, tags: tags}, nil
+	w, h, err := getResolution(ct, srcPath)
+
+	id := uuid.New()
+
+	overlayPath, err := createOverlay(id, w, h, tags)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+
+	processor := videoproc.GetSingleton()
+	processor.AddJob(srcPath, overlayPath, "out1.mp4")
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+
+	return id, nil
 }
 
 func detectContentType(f multipart.File) (ContentType, error) {
@@ -56,7 +79,7 @@ func detectContentType(f multipart.File) (ContentType, error) {
 	}
 }
 
-func saveTmpFile(in multipart.File, ct ContentType) (string, error) {
+func saveTmpFile(collection string, in multipart.File, ct ContentType) (string, error) {
 	var ext string
 	switch ct {
 	case "image/gif":
@@ -67,7 +90,8 @@ func saveTmpFile(in multipart.File, ct ContentType) (string, error) {
 		ext = ".mp4"
 	}
 
-	tempFile, err := os.CreateTemp("", "upload-"+"*"+ext)
+	path := os.TempDir() + string(os.PathSeparator) + collection
+	tempFile, err := os.CreateTemp(path, "upload-"+"*"+ext)
 	if err != nil {
 		return "", err
 	}
@@ -77,5 +101,5 @@ func saveTmpFile(in multipart.File, ct ContentType) (string, error) {
 		return "", err
 	}
 
-	return tempFile.
+	return filepath.Base(tempFile.Name()), nil
 }
